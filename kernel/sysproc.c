@@ -7,6 +7,8 @@
 #include "spinlock.h"
 #include "proc.h"
 
+#include "sysinfo.h"
+
 uint64
 sys_exit(void)
 {
@@ -95,3 +97,39 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64
+sys_trace(void)
+{
+  int mask;
+  if (argint(0, &mask) < 0) {
+    return -1;  // 错误处理：无法从用户空间获取参数
+  }
+  myproc()->trace_mask = mask;  // 将mask存储在proc结构体的trace_mask变量中
+  return 0;  // 成功执行，返回0
+}
+
+uint64
+sys_sysinfo(void)
+{
+  // remember to change defs.h to ensure the kfreemem() and procnum() predeclare.
+  struct sysinfo info;  // 在内核栈上分配一个 sysinfo 结构体
+  uint64 up;  // 用户空间的 sysinfo 结构体指针
+
+  // 获取用户空间的 sysinfo 结构体指针
+  if(argaddr(0, &up) < 0){
+    return -1;
+  }
+
+  // 获取系统信息
+  info.freemem = kfreemem();
+  info.nproc = procnum();
+
+  // 将内核空间的 sysinfo 结构体复制到用户空间
+  if(copyout(myproc()->pagetable, up, (char*)&info, sizeof(info)) < 0) {
+    return -1;
+  }
+
+  return 0;
+}
+

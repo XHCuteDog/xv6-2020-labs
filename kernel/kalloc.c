@@ -14,6 +14,8 @@ void freerange(void *pa_start, void *pa_end);
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
 
+uint64 knumfree = 0;
+
 struct run {
   struct run *next;
 };
@@ -60,6 +62,7 @@ kfree(void *pa)
   r->next = kmem.freelist;
   kmem.freelist = r;
   release(&kmem.lock);
+  knumfree += 1;
 }
 
 // Allocate one 4096-byte page of physical memory.
@@ -78,5 +81,14 @@ kalloc(void)
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
+  if((void*)r) {
+    knumfree -= 1;
+  }
   return (void*)r;
+}
+
+uint64
+kfreemem(void)
+{
+  return knumfree * PGSIZE;
 }

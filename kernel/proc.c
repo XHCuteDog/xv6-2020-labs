@@ -21,6 +21,8 @@ static void freeproc(struct proc *p);
 
 extern char trampoline[]; // trampoline.S
 
+uint64 procn = 0;
+
 // initialize the proc table at boot time.
 void
 procinit(void)
@@ -127,6 +129,7 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  procn++;
   return p;
 }
 
@@ -150,6 +153,8 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+
+  procn--;
 }
 
 // Create a user page table for a given process,
@@ -295,6 +300,8 @@ fork(void)
 
   np->state = RUNNABLE;
 
+  
+  np->trace_mask = p->trace_mask;
   release(&np->lock);
 
   return pid;
@@ -692,4 +699,10 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+uint64
+procnum(void)
+{
+  return procn;
 }
