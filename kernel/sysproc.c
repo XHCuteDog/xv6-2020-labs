@@ -47,8 +47,9 @@ sys_sbrk(void)
   if(argint(0, &n) < 0)
     return -1;
   addr = myproc()->sz;
-  if(growproc(n) < 0)
-    return -1;
+  myproc()->sz = addr + n; // added
+  // if(growproc(n) < 0)
+  //   return -1;
   return addr;
 }
 
@@ -57,6 +58,8 @@ sys_sleep(void)
 {
   int n;
   uint ticks0;
+
+  backtrace();
 
   if(argint(0, &n) < 0)
     return -1;
@@ -94,4 +97,27 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+
+// int sigalarm(int ticks, void (*handler)());
+// we need to get the first argument (ticks) and the second argument (handler)
+// first argument is an integer, so we use argint
+// second argument is a pointer, so we use argaddr
+uint64 
+sys_sigalarm(void)
+{
+  int ticks;
+  uint64 handler;
+  if(argint(0, &ticks) < 0)
+    return -1;
+  if(argaddr(1, &handler) < 0)
+    return -1;
+  return sigalarm(ticks, (void (*)(void))handler);
+}
+
+uint64
+sys_sigreturn(void)
+{
+  return sigreturn();
 }
