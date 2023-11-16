@@ -65,6 +65,12 @@ usertrap(void)
     intr_on();
 
     syscall();
+  } else if((r_scause() == 15 || r_scause() == 13) && kiscowpage(r_stval())){
+    // page fault
+    // When a page-fault occurs on a COW page, allocate a new page with kalloc(), copy the old page to the new page, 
+    // and install the new page in the PTE with PTE_W set.
+    if(kcowcopy(r_stval()) == -1)
+      p->killed = 1;
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
