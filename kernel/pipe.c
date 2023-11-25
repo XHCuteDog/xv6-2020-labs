@@ -89,6 +89,8 @@ pipewrite(struct pipe *pi, uint64 addr, int n)
       }
       wakeup(&pi->nread);
       sleep(&pi->nwrite, &pi->lock);
+      // if write buf is full, we should read from buf to make space for new data
+      // so sleep write and wakeup read
     }
     if(copyin(pr->pagetable, &ch, addr + i, 1) == -1)
       break;

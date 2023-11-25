@@ -56,10 +56,10 @@ kfree(void *pa)
 
   r = (struct run*)pa;
 
-  acquire(&kmem.lock);
+  // acquire(&kmem.lock);
   r->next = kmem.freelist;
   kmem.freelist = r;
-  release(&kmem.lock);
+  // release(&kmem.lock);
 }
 
 // Allocate one 4096-byte page of physical memory.

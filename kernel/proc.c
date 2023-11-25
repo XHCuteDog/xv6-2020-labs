@@ -422,6 +422,9 @@ wait(uint64 addr)
           pid = np->pid;
           if(addr != 0 && copyout(p->pagetable, addr, (char *)&np->xstate,
                                   sizeof(np->xstate)) < 0) {
+          // 如果 addr 参数非零，这意味着父进程提供了一个有效的用户空间地址，
+          // 用于存储子进程的退出状态。copyout 函数就会把子进程的退出状态复制到这个地址。
+          // 如果 addr 为零，则表示父进程不需要子进程的退出状态。
             release(&np->lock);
             release(&p->lock);
             return -1;
