@@ -156,7 +156,6 @@ bget(uint dev, uint blockno)
   release(&bcache.buf_bucket_lock[bucket_key]);
   release(&bcache.evict_lock);
   acquiresleep(&b->lock);
-  printf("bget: create a new buffer\n");
   return b;
 }
 
