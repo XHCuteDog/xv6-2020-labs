@@ -21,12 +21,19 @@ struct run {
 struct {
   struct spinlock lock;
   struct run *freelist;
-} kmem;
+} kmem[NCPU];
+
+// name start with "kmem" and have 8 CPU
+char* cpu_lock_name[NCPU] = {"kmem0", "kmem1", "kmem2", "kmem3", "kmem4", "kmem5", "kmem6", "kmem7"};
+
 
 void
 kinit()
 {
-  initlock(&kmem.lock, "kmem");
+  for(int i = 0; i < NCPU; i++){
+    initlock(&kmem[i].lock, cpu_lock_name[i]);
+    kmem[i].freelist = 0;
+  }
   freerange(end, (void*)PHYSTOP);
 }
 
@@ -56,10 +63,13 @@ kfree(void *pa)
 
   r = (struct run*)pa;
 
-  acquire(&kmem.lock);
-  r->next = kmem.freelist;
-  kmem.freelist = r;
-  release(&kmem.lock);
+  push_off();
+  int cpu_id = cpuid();
+  acquire(&kmem[cpu_id].lock);
+  r->next = kmem[cpu_id].freelist;
+  kmem[cpu_id].freelist = r;
+  release(&kmem[cpu_id].lock);
+  pop_off();
 }
 
 // Allocate one 4096-byte page of physical memory.
@@ -70,12 +80,37 @@ kalloc(void)
 {
   struct run *r;
 
-  acquire(&kmem.lock);
-  r = kmem.freelist;
-  if(r)
-    kmem.freelist = r->next;
-  release(&kmem.lock);
+  push_off();
+  int cpu_id = cpuid();
+  acquire(&kmem[cpu_id].lock);
 
+  if(!kmem[cpu_id].freelist)
+  {
+    // steal 128 pages from other cpu freelist
+    int steal_pages = 128;
+    int i = (cpu_id + 1) % NCPU;
+    while(i != cpu_id && steal_pages > 0) // could make sure all cpu try to steal as the same order
+    {
+      acquire(&kmem[i].lock);
+      struct run *rr = kmem[i].freelist;
+      while(rr && steal_pages > 0)
+      {
+        kmem[i].freelist = rr->next; // remove from freelist
+        rr->next = kmem[cpu_id].freelist; // add to limited cpu freelist
+        kmem[cpu_id].freelist = rr; // update the limited cpu head
+        rr = kmem[i].freelist; // update the steal cpu head
+        steal_pages--;
+      }
+      release(&kmem[i].lock);
+      i = (i + 1) % NCPU;
+    }
+  }
+  r = kmem[cpu_id].freelist;
+  if(r)
+    kmem[cpu_id].freelist = r->next;
+
+  release(&kmem[cpu_id].lock);
+  pop_off();
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
